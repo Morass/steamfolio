@@ -16,8 +16,9 @@ test('panel changes metric and accumulates any nonempty game subset',async()=>{
   window.eval(source('sources.js'));
   window.SteamfolioSources.fetchReport=async url=>url==='/dir.php'?catalog:report(url.match(/details\/(\d+)/)[1]);
   window.eval(source('content.js'));
-  await tick();
   const root=window.document.querySelector('#steamfolio-root').shadowRoot;
+  root.querySelector('.sf-launch').click();
+  await tick();
   assert.equal(root.querySelector('#sf-count').textContent,'2/2');
   assert.equal(root.querySelector('.sf-total strong').textContent,'8');
   const boxes=root.querySelectorAll('#sf-games input');
@@ -39,8 +40,9 @@ test('selection change cannot show an old in-flight total',async()=>{
   window.eval(source('sources.js'));
   window.SteamfolioSources.fetchReport=async url=>url==='/dir.php'?catalog:report(url.match(/details\/(\d+)/)[1]);
   window.eval(source('content.js'));
-  await tick();
   const root=window.document.querySelector('#steamfolio-root').shadowRoot;
+  root.querySelector('.sf-launch').click();
+  await tick();
   const releases=[];
   window.SteamfolioSources.fetchReport=()=>new Promise(resolve=>{releases.push(resolve);});
   root.querySelector('#sf-refresh').click();
@@ -52,4 +54,22 @@ test('selection change cannot show an old in-flight total',async()=>{
   assert.equal(root.querySelector('.sf-total strong'),null);
   assert.equal(root.querySelector('#sf-refresh').disabled,false);
   dom.window.close();
+});
+test('opening the pane triggers the first report load',async()=>{
+  const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'https://partner.steampowered.com/',runScripts:'outside-only'});
+  const {window}=dom;
+  window.chrome={runtime:{getURL:()=>'/panel.css'},storage:{local:{get:async()=>({}),set:()=>{}}}};
+  window.eval(source('model.js'));window.eval(source('sources.js'));
+  const calls=[];
+  window.SteamfolioSources.fetchReport=async url=>{calls.push(url);return url==='/dir.php'?catalog:report(url.match(/details\/(\d+)/)[1]);};
+  window.eval(source('content.js'));
+  await tick();assert.equal(calls.length,0);
+  const root=window.document.querySelector('#steamfolio-root').shadowRoot;
+  root.querySelector('.sf-launch').click();await tick();
+  assert.equal(calls.length,3);
+  dom.window.close();
+});
+test('content stylesheet stays inside the shadow root',()=>{
+  const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'../manifest.json'),'utf8'));
+  assert.equal(manifest.content_scripts[0].css,undefined);
 });

@@ -62,8 +62,8 @@
   }
   async function load() {
     const games=selectedGames(),m=Model.BY_ID[state.metric],generation=++state.generation;
-    if (!games.length){status.textContent='Select at least one game.';result.replaceChildren();controls();return;}
-    if (!m.lifetime && (!/^\d{4}-\d\d-\d\d$/.test(state.start)||!/^\d{4}-\d\d-\d\d$/.test(state.end)||state.start>state.end)) {status.textContent='Choose a valid date range.';result.replaceChildren();return;}
+    if (!games.length){state.busy=false;status.textContent='Select at least one game.';result.replaceChildren();controls();return;}
+    if (!m.lifetime && (!/^\d{4}-\d\d-\d\d$/.test(state.start)||!/^\d{4}-\d\d-\d\d$/.test(state.end)||state.start>state.end)) {state.busy=false;status.textContent='Choose a valid date range.';result.replaceChildren();controls();return;}
     state.busy=true;controls();status.textContent='Reading Steamworks reports…';result.replaceChildren();
     const rows=new Map();
     try {
@@ -89,7 +89,7 @@
       status.textContent=e.message || 'Report unavailable';result.replaceChildren();
     } finally {if(generation===state.generation){state.busy=false;controls();}}
   }
-  launcher.addEventListener('click',()=>{state.open=!state.open;panel.hidden=!state.open;launcher.hidden=state.open;});
+  launcher.addEventListener('click',()=>{state.open=!state.open;panel.hidden=!state.open;launcher.hidden=state.open;if(state.open&&!state.initialized){state.initialized=true;init();}});
   $('.sf-close').addEventListener('click',()=>{state.open=false;panel.hidden=true;launcher.hidden=false;});
   metric.addEventListener('change',()=>{state.metric=metric.value;controls();save();load();});
   for (const [element,key] of [[start,'start'],[end,'end']])element.addEventListener('change',()=>{state[key]=element.value;save();load();});
@@ -106,7 +106,6 @@
       if(/^\d{4}-\d\d-\d\d$/.test(stored.start))state.start=stored.start;
       if(/^\d{4}-\d\d-\d\d$/.test(stored.end))state.end=stored.end;
       metric.value=state.metric;start.value=state.start;end.value=state.end;renderGames();await load();
-    } catch(e){status.textContent=e.message||'Steamworks game list unavailable';}
+    } catch(e){state.initialized=false;status.textContent=e.message||'Steamworks game list unavailable';}
   }
-  init();
 })();

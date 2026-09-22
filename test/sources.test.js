@@ -29,6 +29,8 @@ test('reads wishlist report and fills only absent games with zero',()=>{
 
 test('rejects a malformed report instead of showing false zeroes',()=>{
   assert.throws(()=>wishlist('<h1>Sign in</h1>',[{id:'10'}]),/unavailable/);
-  assert.equal(number('—'),0);
+  assert.equal(number('—'),null);
   assert.equal(number('$1,234.50'),1234.5);
+  const truncated='<h2>Per-App Wishlist Activity</h2><table><tr><th>Game</th><th>Period Wishlist Balance</th></tr><tr><td><a href="/app/wishlist/10/">Alpha</a></td><td>2</td></tr></table>';
+  assert.throws(()=>wishlist(truncated,[{id:'10'}]),/incomplete/);
 });

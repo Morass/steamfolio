@@ -3,7 +3,7 @@
   'use strict';
   function number(text) {
     const value=String(text).replace(/\u00a0/g,' ').trim();
-    if (value==='-' || value==='—') return 0;
+    if (value==='-' || value==='—') return null;
     const matched=value.match(/-?\s*[\d,]+(?:\.\d+)?/);
     if (!matched) return null;
     const n=Number(matched[0].replace(/[\s,]/g,''));
@@ -49,7 +49,8 @@
     for (const tr of [...table.rows].slice(1)) {
       const cells=[...tr.cells],link=cells[0]?.querySelector('a[href*="/app/wishlist/"]');
       const id=link?.getAttribute('href').match(/\/app\/wishlist\/(\d+)\//)?.[1];
-      if (!id || cells.length<6) continue;
+      if (!id) continue;
+      if (cells.length<6) throw new Error('Wishlist report contains an incomplete game row');
       const values=cells.slice(1,6).map(c=>number(c.textContent));
       if (values.some(v=>v===null)) throw new Error('Wishlist report contains an unreadable value');
       map.set(id,{additions:values[0],deletions:values[1],purchases:values[2],gifts:values[3],balance:values[4]});

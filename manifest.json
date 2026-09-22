@@ -8,7 +8,6 @@
   "content_scripts": [{
     "matches": ["https://partner.steampowered.com/*"],
     "js": ["src/model.js", "src/sources.js", "src/content.js"],
-    "css": ["src/panel.css"],
     "run_at": "document_idle"
   }],
   "web_accessible_resources": [{"resources": ["src/panel.css"], "matches": ["https://partner.steampowered.com/*"]}],
