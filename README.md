@@ -23,7 +23,7 @@ Your game selection, statistic, and dates are remembered in this Chrome profile.
 
 ## What it reads
 
-Steamfolio reads the game directory and the relevant reports available to your signed-in Steamworks account. It does not change reports or games, request an API key, or send results to another service. Your choices are saved in Chrome's local extension storage; report values stay in the current tab.
+Steamfolio reads the game directory and the relevant reports available to your signed-in Steamworks account. It does not change reports or games, request an API key, or send results to another service. Your choices are saved in Chrome's local extension storage; report values stay in the current tab. See the [privacy policy](PRIVACY.md) for details.
 
 ## Limits
 
