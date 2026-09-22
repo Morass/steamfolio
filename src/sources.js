@@ -41,9 +41,10 @@
   }
   function wishlist(html,games) {
     const document=doc(html),map=new Map();
+    const expected=['Game','Wishlist Additions','Wishlist Deletions','Wishlist Purchases and Activations','Wishlist Gifts','Period Wishlist Balance'];
     const table=[...document.querySelectorAll('table')].find(t=>{
       const cells=t.rows[0] && [...t.rows[0].cells].map(c=>c.textContent.trim());
-      return cells && cells[0]==='Game' && cells.includes('Period Wishlist Balance');
+      return cells && expected.every((label,i)=>cells[i]===label);
     });
     if (!table || !document.body.textContent.includes('Per-App Wishlist Activity')) throw new Error('Wishlist report unavailable');
     for (const tr of [...table.rows].slice(1)) {

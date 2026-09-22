@@ -33,5 +33,9 @@ test('rejects a malformed report instead of showing false zeroes',()=>{
   assert.equal(number('$1,234.50'),1234.5);
   assert.equal(number('-$1,234.50'),-1234.5);
   const truncated='<h2>Per-App Wishlist Activity</h2><table><tr><th>Game</th><th>Period Wishlist Balance</th></tr><tr><td><a href="/app/wishlist/10/">Alpha</a></td><td>2</td></tr></table>';
-  assert.throws(()=>wishlist(truncated,[{id:'10'}]),/incomplete/);
+  assert.throws(()=>wishlist(truncated,[{id:'10'}]),/unavailable/);
+  const reordered='<h2>Per-App Wishlist Activity</h2><table><tr><th>Game</th><th>Wishlist Deletions</th><th>Wishlist Additions</th><th>Wishlist Purchases and Activations</th><th>Wishlist Gifts</th><th>Period Wishlist Balance</th></tr><tr><td><a href="/app/wishlist/10/">Alpha</a></td><td>2</td><td>8</td><td>1</td><td>0</td><td>5</td></tr></table>';
+  assert.throws(()=>wishlist(reordered,[{id:'10'}]),/unavailable/);
+  const shortRow='<h2>Per-App Wishlist Activity</h2><table><tr><th>Game</th><th>Wishlist Additions</th><th>Wishlist Deletions</th><th>Wishlist Purchases and Activations</th><th>Wishlist Gifts</th><th>Period Wishlist Balance</th></tr><tr><td><a href="/app/wishlist/10/">Alpha</a></td><td>2</td></tr></table>';
+  assert.throws(()=>wishlist(shortRow,[{id:'10'}]),/incomplete/);
 });
