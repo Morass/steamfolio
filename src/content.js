@@ -70,13 +70,16 @@
       if (m.source==='wishlist') {
         const q=new URLSearchParams({dateStart:state.start,dateEnd:state.end});
         const html=await Sources.fetchReport(`/wishlist/daily/?${q}`);
+        Sources.verifyDates(html,state.start,state.end);
         const all=Sources.wishlist(html,state.games);
         for(const game of games) if(all.has(game.id))rows.set(game.id,all.get(game.id));
       } else {
         await Model.runLimited(games,3,async game=>{
           try {
             const q=m.lifetime?'':`?${new URLSearchParams({dateStart:state.start,dateEnd:state.end})}`;
-            rows.set(game.id,Sources.detail(await Sources.fetchReport(`/app/details/${game.id}/${q}`)));
+            const html=await Sources.fetchReport(`/app/details/${game.id}/${q}`);
+            if(!m.lifetime)Sources.verifyDates(html,state.start,state.end);
+            rows.set(game.id,Sources.detail(html));
           } catch (_) { /* A missing game remains missing in the total. */ }
         });
       }

@@ -2,7 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {JSDOM}=require('jsdom');
 global.DOMParser=new JSDOM('').window.DOMParser;
-const {number,catalog,detail,wishlist}=require('../src/sources');
+const {number,catalog,detail,wishlist,verifyDates}=require('../src/sources');
 
 test('reads the game directory and deduplicates links',()=>{
   const html='<a href="/app/details/10/">Alpha</a><a href="/app/details/10/">Alpha</a><a href="/app/details/20/">Beta</a>';
@@ -38,4 +38,21 @@ test('rejects a malformed report instead of showing false zeroes',()=>{
   assert.throws(()=>wishlist(reordered,[{id:'10'}]),/unavailable/);
   const shortRow='<h2>Per-App Wishlist Activity</h2><table><tr><th>Game</th><th>Wishlist Additions</th><th>Wishlist Deletions</th><th>Wishlist Purchases and Activations</th><th>Wishlist Gifts</th><th>Period Wishlist Balance</th></tr><tr><td><a href="/app/wishlist/10/">Alpha</a></td><td>2</td></tr></table>';
   assert.throws(()=>wishlist(shortRow,[{id:'10'}]),/incomplete/);
+  const unlinked='<h2>Per-App Wishlist Activity</h2><table><tr><th>Game</th><th>Wishlist Additions</th><th>Wishlist Deletions</th><th>Wishlist Purchases and Activations</th><th>Wishlist Gifts</th><th>Period Wishlist Balance</th></tr><tr><td>Alpha</td><td>2</td><td>0</td><td>0</td><td>0</td><td>2</td></tr></table>';
+  assert.throws(()=>wishlist(unlinked,[{id:'10'}]),/missing a game link/);
+});
+
+test('rejects ambiguous values and numbers mixed with other text',()=>{
+  const duplicate='<h1>Game</h1><table><tr><td>Lifetime Steam revenue (gross)</td><td>$999</td></tr><tr><td>Total revenue</td><td></td><td>$999</td></tr></table><table><tr><td>Total revenue</td><td></td><td>$1</td></tr></table>';
+  assert.throws(()=>detail(duplicate),/repeated report value/);
+  assert.equal(number('As of Sep 12, 2026: 1,234'),null);
+  assert.equal(number('1 234'),1234);
+  assert.equal(number('55 +'),55);
+});
+
+test('verifies the dates Steamworks says it applied',()=>{
+  const fields='<input name="dateStart" value="2026-09-15"><input name="dateEnd" value="2026-09-21">';
+  assert.doesNotThrow(()=>verifyDates(fields,'2026-09-15','2026-09-21'));
+  assert.throws(()=>verifyDates(fields,'2026-09-16','2026-09-21'),/date range/);
+  assert.throws(()=>verifyDates('<h1>Report</h1>','2026-09-15','2026-09-21'),/date range/);
 });
