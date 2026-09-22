@@ -1,0 +1,33 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const {JSDOM}=require('jsdom');
+
+const source=name=>fs.readFileSync(path.join(__dirname,'../src',name),'utf8');
+const catalog='<a href="/app/details/10/">Alpha</a><a href="/app/details/20/">Beta</a>';
+function report(id) {return `<h1>Game</h1><table><tr><td>Lifetime Steam revenue (gross)</td><td>$${id==='10'?10:20}</td></tr><tr><td>Lifetime Steam revenue (net)</td><td>$0</td></tr><tr><td>Lifetime Steam units (?)</td><td>0</td></tr><tr><td>Wishlists</td><td>${id==='10'?3:5}</td></tr></table><table><tr><td>Total units</td><td></td><td>0</td></tr><tr><td>Total revenue</td><td></td><td>$0</td></tr></table>`;}
+const tick=()=>new Promise(resolve=>setTimeout(resolve,15));
+test('panel changes metric and accumulates any nonempty game subset',async()=>{
+  const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'https://partner.steampowered.com/',runScripts:'outside-only'});
+  const {window}=dom;
+  window.chrome={runtime:{getURL:()=>'/panel.css'},storage:{local:{get:async()=>({}),set:()=>{}}}};
+  window.eval(source('model.js'));
+  window.eval(source('sources.js'));
+  window.SteamfolioSources.fetchReport=async url=>url==='/dir.php'?catalog:report(url.match(/details\/(\d+)/)[1]);
+  window.eval(source('content.js'));
+  await tick();
+  const root=window.document.querySelector('#steamfolio-root').shadowRoot;
+  assert.equal(root.querySelector('#sf-count').textContent,'2/2');
+  assert.equal(root.querySelector('.sf-total strong').textContent,'8');
+  const boxes=root.querySelectorAll('#sf-games input');
+  boxes[1].checked=false;boxes[1].dispatchEvent(new window.Event('change'));
+  root.querySelector('#sf-refresh').click();await tick();
+  assert.equal(root.querySelector('.sf-total strong').textContent,'3');
+  const select=root.querySelector('#sf-metric');select.value='sales.lifetimeGross';select.dispatchEvent(new window.Event('change'));await tick();
+  assert.match(root.querySelector('.sf-total strong').textContent,/10/);
+  root.querySelector('#sf-none').click();await tick();
+  assert.equal(root.querySelector('.sf-total strong'),null);
+  assert.match(root.querySelector('#sf-status').textContent,/Select at least one/);
+  dom.window.close();
+});
