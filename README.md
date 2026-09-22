@@ -2,6 +2,10 @@
 
 See one Steamworks statistic across any selection of your games.
 
+![Steamfolio showing current wishlists across three games](docs/portfolio-all.png)
+
+Example view with illustrative game names and figures.
+
 ## Install
 
 1. Download and extract the repository.
@@ -14,6 +18,8 @@ See one Steamworks statistic across any selection of your games.
 Click the small chart button at the lower right of a Steamworks report page. Choose a statistic, select one or more games, and set dates for period statistics. The large number is the total across the selected games; the bars show each game's contribution. Use **Update totals** to read the reports again.
 
 Your game selection, statistic, and dates are remembered in this Chrome profile. **None** clears the selection; choose at least one game to see a total.
+
+![Steamfolio showing lifetime gross revenue for two selected games](docs/portfolio-selection.png)
 
 ## What it reads
 
