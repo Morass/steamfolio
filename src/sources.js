@@ -4,9 +4,9 @@
   function number(text) {
     const value=String(text).replace(/\u00a0/g,' ').trim();
     if (value==='-' || value==='—') return null;
-    const matched=value.match(/-?\s*[\d,]+(?:\.\d+)?/);
+    const matched=value.match(/(-)?\s*\$?\s*([\d,]+(?:\.\d+)?)/);
     if (!matched) return null;
-    const n=Number(matched[0].replace(/[\s,]/g,''));
+    const n=Number(matched[2].replace(/,/g,''))*(matched[1]?-1:1);
     return Number.isFinite(n)?n:null;
   }
   function doc(html) {return new DOMParser().parseFromString(html,'text/html');}

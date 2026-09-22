@@ -3,10 +3,10 @@
   if (document.getElementById('steamfolio-root')) return;
   const Model=globalThis.SteamfolioModel, Sources=globalThis.SteamfolioSources;
   const state={games:[],selected:new Set(),metric:'wishlist.current',start:'',end:'',busy:false,open:false,query:'',generation:0};
-  const today=new Date();
-  const prior=new Date(today);prior.setDate(prior.getDate()-6);
+  const latest=new Date();latest.setDate(latest.getDate()-1);
+  const prior=new Date(latest);prior.setDate(prior.getDate()-6);
   const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  state.start=iso(prior);state.end=iso(today);
+  state.start=iso(prior);state.end=iso(latest);
   const host=document.createElement('div');host.id='steamfolio-root';document.documentElement.append(host);
   const shadow=host.attachShadow({mode:'open'});
   const style=document.createElement('link');style.rel='stylesheet';style.href=chrome.runtime.getURL('src/panel.css');shadow.append(style);

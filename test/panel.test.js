@@ -67,6 +67,9 @@ test('opening the pane triggers the first report load',async()=>{
   const root=window.document.querySelector('#steamfolio-root').shadowRoot;
   root.querySelector('.sf-launch').click();await tick();
   assert.equal(calls.length,3);
+  const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
+  const day=`${yesterday.getFullYear()}-${String(yesterday.getMonth()+1).padStart(2,'0')}-${String(yesterday.getDate()).padStart(2,'0')}`;
+  assert.equal(root.querySelector('#sf-end').value,day);
   dom.window.close();
 });
 test('content stylesheet stays inside the shadow root',()=>{
