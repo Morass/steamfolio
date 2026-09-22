@@ -1,0 +1,71 @@
+/* Read only the reports visible to the signed-in Steamworks user. */
+(function (root) {
+  'use strict';
+  function number(text) {
+    const value=String(text).replace(/\u00a0/g,' ').trim();
+    if (value==='-' || value==='—') return 0;
+    const matched=value.match(/-?\s*[\d,]+(?:\.\d+)?/);
+    if (!matched) return null;
+    const n=Number(matched[0].replace(/[\s,]/g,''));
+    return Number.isFinite(n)?n:null;
+  }
+  function doc(html) {return new DOMParser().parseFromString(html,'text/html');}
+  function catalog(html) {
+    const document=doc(html),games=new Map();
+    for (const link of document.querySelectorAll('a[href*="/app/details/"]')) {
+      const match=link.getAttribute('href').match(/\/app\/details\/(\d+)\//);
+      const name=link.textContent.trim();
+      if (match && name && !games.has(match[1])) games.set(match[1],{id:match[1],name});
+    }
+    if (!games.size) throw new Error('Steamworks game list unavailable');
+    return [...games.values()].sort((a,b)=>a.name.localeCompare(b.name));
+  }
+  function detail(html) {
+    const document=doc(html),data={};
+    const heading=document.querySelector('h1,h2,h3');
+    if (!document.body.textContent.includes('Lifetime Steam revenue') || !heading) throw new Error('Game report unavailable');
+    const tables=[...document.querySelectorAll('table')];
+    for (const table of tables) for (const tr of table.rows) {
+      const cells=[...tr.cells].map(c=>c.textContent.trim());
+      if (cells.length<2) continue;
+      const label=cells[0].replace(/\s*\(\?\)[\s\S]*$/,'').trim();
+      const v=number(cells[1]);
+      if (label==='Lifetime Steam revenue (gross)') data.lifetimeGross=v;
+      if (label==='Lifetime Steam revenue (net)') data.lifetimeNet=v;
+      if (label==='Lifetime Steam units') data.lifetimeUnits=v;
+      if (label==='Wishlists') data.wishlistCurrent=v;
+      if (label==='Total units') data.periodUnits=number(cells[2]);
+      if (label==='Total revenue') data.periodRevenue=number(cells[2]);
+    }
+    return data;
+  }
+  function wishlist(html,games) {
+    const document=doc(html),map=new Map();
+    const table=[...document.querySelectorAll('table')].find(t=>{
+      const cells=t.rows[0] && [...t.rows[0].cells].map(c=>c.textContent.trim());
+      return cells && cells[0]==='Game' && cells.includes('Period Wishlist Balance');
+    });
+    if (!table || !document.body.textContent.includes('Per-App Wishlist Activity')) throw new Error('Wishlist report unavailable');
+    for (const tr of [...table.rows].slice(1)) {
+      const cells=[...tr.cells],link=cells[0]?.querySelector('a[href*="/app/wishlist/"]');
+      const id=link?.getAttribute('href').match(/\/app\/wishlist\/(\d+)\//)?.[1];
+      if (!id || cells.length<6) continue;
+      const values=cells.slice(1,6).map(c=>number(c.textContent));
+      if (values.some(v=>v===null)) throw new Error('Wishlist report contains an unreadable value');
+      map.set(id,{additions:values[0],deletions:values[1],purchases:values[2],gifts:values[3],balance:values[4]});
+    }
+    // The report omits games without any activity in the selected period.
+    for (const game of games) if (!map.has(String(game.id))) map.set(String(game.id),{additions:0,deletions:0,purchases:0,gifts:0,balance:0});
+    return map;
+  }
+  async function fetchReport(path) {
+    const response=await fetch(path,{credentials:'same-origin',cache:'no-store'});
+    if (!response.ok || new URL(response.url).origin!==location.origin) throw new Error('Steamworks report could not be loaded');
+    const html=await response.text();
+    if (/name=["']password["']|id=["']login_form["']/i.test(html)) throw new Error('Steamworks sign-in required');
+    return html;
+  }
+  const api={number,catalog,detail,wishlist,fetchReport};
+  if (typeof module==='object' && module.exports) module.exports=api;
+  else root.SteamfolioSources=api;
+})(globalThis);
