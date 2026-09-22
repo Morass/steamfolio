@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {aggregate}=require('../src/model');
+const {aggregate,runLimited}=require('../src/model');
 
 const games=[{id:'10',name:'First'},{id:'20',name:'Second'}];
 
@@ -21,4 +21,13 @@ test('withholds a partial total when a selected game is unreadable',()=>{
 test('zero is a valid result, while empty selection has no total',()=>{
   assert.equal(aggregate('wishlist.balance',games,new Map(games.map(g=>[g.id,{balance:0}]))).total,0);
   assert.equal(aggregate('wishlist.balance',[],new Map()).total,null);
+});
+
+test('report pool runs every item even when the host page replaces Array.from',async()=>{
+  const original=Array.from,seen=[];
+  Array.from=()=>[];
+  try {
+    await runLimited([1,2,3,4],2,async n=>{seen.push(n);});
+    assert.deepEqual(seen.sort(),[1,2,3,4]);
+  } finally {Array.from=original;}
 });

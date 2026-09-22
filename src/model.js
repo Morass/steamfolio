@@ -32,7 +32,15 @@
     return unit==='usd' ? new Intl.NumberFormat(undefined,{style:'currency',currency:'USD',maximumFractionDigits:2}).format(value)
       : new Intl.NumberFormat().format(value);
   }
-  const api={METRICS,BY_ID,aggregate,format};
+  async function runLimited(items,limit,job) {
+    let next=0;
+    const workers=[];
+    for(let i=0;i<Math.min(limit,items.length);i++)workers.push((async()=>{
+      while(next<items.length){const item=items[next++];await job(item);}
+    })());
+    await Promise.all(workers);
+  }
+  const api={METRICS,BY_ID,aggregate,format,runLimited};
   if (typeof module==='object' && module.exports) module.exports=api;
   else root.SteamfolioModel=api;
 })(globalThis);

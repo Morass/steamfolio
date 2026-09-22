@@ -73,17 +73,12 @@
         const all=Sources.wishlist(html,state.games);
         for(const game of games) if(all.has(game.id))rows.set(game.id,all.get(game.id));
       } else {
-        let next=0;
-        async function worker() {
-          while(next<games.length) {
-            const game=games[next++];
-            try {
-              const q=m.lifetime?'':`?${new URLSearchParams({dateStart:state.start,dateEnd:state.end})}`;
-              rows.set(game.id,Sources.detail(await Sources.fetchReport(`/app/details/${game.id}/${q}`)));
-            } catch (_) { /* A missing game remains missing in the total. */ }
-          }
-        }
-        await Promise.all(Array.from({length:Math.min(3,games.length)},worker));
+        await Model.runLimited(games,3,async game=>{
+          try {
+            const q=m.lifetime?'':`?${new URLSearchParams({dateStart:state.start,dateEnd:state.end})}`;
+            rows.set(game.id,Sources.detail(await Sources.fetchReport(`/app/details/${game.id}/${q}`)));
+          } catch (_) { /* A missing game remains missing in the total. */ }
+        });
       }
       if(generation!==state.generation)return;
       const summary=Model.aggregate(state.metric,games,rows);
