@@ -31,3 +31,25 @@ test('panel changes metric and accumulates any nonempty game subset',async()=>{
   assert.match(root.querySelector('#sf-status').textContent,/Select at least one/);
   dom.window.close();
 });
+test('selection change cannot show an old in-flight total',async()=>{
+  const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'https://partner.steampowered.com/',runScripts:'outside-only'});
+  const {window}=dom;
+  window.chrome={runtime:{getURL:()=>'/panel.css'},storage:{local:{get:async()=>({}),set:()=>{}}}};
+  window.eval(source('model.js'));
+  window.eval(source('sources.js'));
+  window.SteamfolioSources.fetchReport=async url=>url==='/dir.php'?catalog:report(url.match(/details\/(\d+)/)[1]);
+  window.eval(source('content.js'));
+  await tick();
+  const root=window.document.querySelector('#steamfolio-root').shadowRoot;
+  const releases=[];
+  window.SteamfolioSources.fetchReport=()=>new Promise(resolve=>{releases.push(resolve);});
+  root.querySelector('#sf-refresh').click();
+  await tick();
+  const box=root.querySelector('#sf-games input');
+  box.checked=false;box.dispatchEvent(new window.Event('change'));
+  releases.forEach((release,i)=>release(report(i===0?'10':'20')));
+  await tick();
+  assert.equal(root.querySelector('.sf-total strong'),null);
+  assert.equal(root.querySelector('#sf-refresh').disabled,false);
+  dom.window.close();
+});

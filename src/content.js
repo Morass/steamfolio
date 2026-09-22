@@ -35,7 +35,7 @@
     for (const game of state.games.filter(g=>g.name.toLocaleLowerCase().includes(state.query)).slice(0,200)) {
       const label=document.createElement('label'),input=document.createElement('input'),name=document.createElement('span');
       input.type='checkbox';input.checked=state.selected.has(game.id);input.value=game.id;
-      input.addEventListener('change',()=>{if(input.checked)state.selected.add(game.id);else state.selected.delete(game.id);controls();save();result.replaceChildren();status.textContent='Selection changed. Update totals to recalculate.';});
+      input.addEventListener('change',()=>{if(input.checked)state.selected.add(game.id);else state.selected.delete(game.id);state.generation++;state.busy=false;controls();save();result.replaceChildren();status.textContent='Selection changed. Update totals to recalculate.';});
       name.textContent=game.name;label.append(input,name);gameList.append(label);
     }
     controls();
