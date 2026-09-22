@@ -76,3 +76,36 @@ test('content stylesheet stays inside the shadow root',()=>{
   const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'../manifest.json'),'utf8'));
   assert.equal(manifest.content_scripts[0].css,undefined);
 });
+test('failed game report explains why the combined total is withheld',async()=>{
+  const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'https://partner.steampowered.com/',runScripts:'outside-only'});
+  const {window}=dom;
+  window.chrome={runtime:{getURL:()=>'/panel.css'},storage:{local:{get:async()=>({}),set:()=>{}}}};
+  window.eval(source('model.js'));window.eval(source('sources.js'));
+  window.SteamfolioSources.fetchReport=async url=>{
+    if(url==='/dir.php')return catalog;
+    if(url.includes('/20/'))throw new Error('Sign in again');
+    return report('10');
+  };
+  window.eval(source('content.js'));
+  const root=window.document.querySelector('#steamfolio-root').shadowRoot;
+  root.querySelector('.sf-launch').click();await tick();
+  root.querySelector('#sf-metric').value='sales.lifetimeGross';
+  root.querySelector('#sf-metric').dispatchEvent(new window.Event('change'));await tick();
+  assert.equal(root.querySelector('.sf-total strong').textContent,'—');
+  assert.match(root.querySelector('#sf-status').textContent,/Beta: Sign in again/);
+  dom.window.close();
+});
+test('large catalogs explain the visible game limit',async()=>{
+  const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'https://partner.steampowered.com/',runScripts:'outside-only'});
+  const {window}=dom;
+  window.chrome={runtime:{getURL:()=>'/panel.css'},storage:{local:{get:async()=>({}),set:()=>{}}}};
+  window.eval(source('model.js'));window.eval(source('sources.js'));
+  window.SteamfolioSources.fetchReport=async url=>url==='/dir.php'
+    ?Array.from({length:201},(_,i)=>`<a href="/app/details/${i+1}/">Game ${i+1}</a>`).join('')
+    :report('10');
+  window.eval(source('content.js'));
+  const root=window.document.querySelector('#steamfolio-root').shadowRoot;
+  root.querySelector('.sf-launch').click();await tick();
+  assert.match(root.querySelector('#sf-games').textContent,/Showing 200 of 201 games/);
+  dom.window.close();
+});

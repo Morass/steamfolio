@@ -32,12 +32,14 @@
   }
   function renderGames() {
     gameList.replaceChildren();
-    for (const game of state.games.filter(g=>g.name.toLocaleLowerCase().includes(state.query)).slice(0,200)) {
+    const matching=state.games.filter(g=>g.name.toLocaleLowerCase().includes(state.query));
+    for (const game of matching.slice(0,200)) {
       const label=document.createElement('label'),input=document.createElement('input'),name=document.createElement('span');
       input.type='checkbox';input.checked=state.selected.has(game.id);input.value=game.id;
       input.addEventListener('change',()=>{if(input.checked)state.selected.add(game.id);else state.selected.delete(game.id);state.generation++;state.busy=false;controls();save();result.replaceChildren();status.textContent='Selection changed. Update totals to recalculate.';});
       name.textContent=game.name;label.append(input,name);gameList.append(label);
     }
+    if(matching.length>200){const note=document.createElement('p');note.textContent=`Showing 200 of ${matching.length} games. Search to find the others.`;gameList.append(note);}
     controls();
   }
   function renderTotals(summary,m) {
@@ -66,6 +68,7 @@
     if (!m.lifetime && (!/^\d{4}-\d\d-\d\d$/.test(state.start)||!/^\d{4}-\d\d-\d\d$/.test(state.end)||state.start>state.end)) {state.busy=false;status.textContent='Choose a valid date range.';result.replaceChildren();controls();return;}
     state.busy=true;controls();status.textContent='Reading Steamworks reports…';result.replaceChildren();
     const rows=new Map();
+    const failures=[];
     try {
       if (m.source==='wishlist') {
         const q=new URLSearchParams({dateStart:state.start,dateEnd:state.end});
@@ -80,12 +83,12 @@
             const html=await Sources.fetchReport(`/app/details/${game.id}/${q}`);
             if(!m.lifetime)Sources.verifyDates(html,state.start,state.end);
             rows.set(game.id,Sources.detail(html));
-          } catch (_) { /* A missing game remains missing in the total. */ }
+          } catch (e) {failures.push(`${game.name}: ${e.message||'report unavailable'}`);}
         });
       }
       if(generation!==state.generation)return;
       const summary=Model.aggregate(state.metric,games,rows);
-      status.textContent=summary.complete?'All selected games loaded.':summary.message+'. The total is unavailable.';
+      status.textContent=summary.complete?'All selected games loaded.':`${summary.message}. The total is unavailable. ${failures.join('; ')}`;
       renderTotals(summary,m);
     } catch(e) {
       if(generation!==state.generation)return;
