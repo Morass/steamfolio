@@ -12,5 +12,6 @@
   }],
   "web_accessible_resources": [{"resources": ["src/panel.css"], "matches": ["https://partner.steampowered.com/*"]}],
   "icons": {"16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png"},
-  "action": {"default_title": "Steamfolio"}
+  "background": {"service_worker": "src/background.js"},
+  "action": {"default_title": "Steamfolio: open or close the pane on Steamworks Sales & Activations"}
 }

@@ -109,3 +109,29 @@ test('large catalogs explain the visible game limit',async()=>{
   assert.match(root.querySelector('#sf-games').textContent,/Showing 200 of 201 games/);
   dom.window.close();
 });
+
+test('the toolbar button opens and closes the pane',async()=>{
+  const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'https://partner.steampowered.com/',runScripts:'outside-only'});
+  const {window}=dom;let listener=null;
+  window.chrome={runtime:{getURL:()=>'/panel.css',onMessage:{addListener:f=>{listener=f;}}},storage:{local:{get:async()=>({}),set:()=>{}}}};
+  window.eval(source('model.js'));
+  window.eval(source('sources.js'));
+  window.SteamfolioSources.fetchReport=async url=>url==='/dir.php'?catalog:report(url.match(/details\/(\d+)/)[1]);
+  window.eval(source('content.js'));
+  const panel=window.document.querySelector('#steamfolio-root').shadowRoot.querySelector('.sf-panel');
+  listener('steamfolio:toggle');await tick();
+  assert.equal(panel.hidden,false);
+  listener('steamfolio:toggle');
+  assert.equal(panel.hidden,true);
+});
+
+test('the toolbar button opens Sales & Activations from any other page',()=>{
+  let clicked=null;const created=[];const sent=[];
+  const chrome={action:{onClicked:{addListener:f=>{clicked=f;}}},tabs:{create:o=>created.push(o.url),sendMessage:(id,m)=>{sent.push([id,m]);return Promise.resolve();},reload:()=>{}}};
+  new Function('chrome',source('background.js'))(chrome);
+  clicked({id:1,url:'https://partner.steamgames.com/apps/'});
+  clicked({id:2});
+  clicked({id:3,url:'https://partner.steampowered.com/app/details/10/'});
+  assert.deepEqual(created,['https://partner.steampowered.com/','https://partner.steampowered.com/']);
+  assert.deepEqual(sent,[[3,'steamfolio:toggle']]);
+});

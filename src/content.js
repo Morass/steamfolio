@@ -97,6 +97,7 @@
   }
   launcher.addEventListener('click',()=>{state.open=!state.open;panel.hidden=!state.open;launcher.hidden=state.open;if(state.open&&!state.initialized){state.initialized=true;init();}});
   $('.sf-close').addEventListener('click',()=>{state.open=false;panel.hidden=true;launcher.hidden=false;});
+  chrome.runtime.onMessage?.addListener(msg=>{if(msg==='steamfolio:toggle')(state.open?$('.sf-close'):launcher).click();});
   metric.addEventListener('change',()=>{state.metric=metric.value;controls();save();load();});
   for (const [element,key] of [[start,'start'],[end,'end']])element.addEventListener('change',()=>{state[key]=element.value;save();load();});
   $('#sf-search').addEventListener('input',e=>{state.query=e.target.value.toLocaleLowerCase();renderGames();});
