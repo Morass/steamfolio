@@ -1,17 +1,49 @@
 {
   "manifest_version": 3,
   "name": "Steamfolio",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Choose a Steamworks statistic and see it across any selection of your games.",
-  "permissions": ["storage"],
-  "host_permissions": ["https://partner.steampowered.com/*"],
-  "content_scripts": [{
-    "matches": ["https://partner.steampowered.com/*"],
-    "js": ["src/model.js", "src/sources.js", "src/content.js"],
-    "run_at": "document_idle"
-  }],
-  "web_accessible_resources": [{"resources": ["src/panel.css"], "matches": ["https://partner.steampowered.com/*"]}],
-  "icons": {"16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png"},
-  "background": {"service_worker": "src/background.js"},
-  "action": {"default_title": "Steamfolio: open or close the pane on Steamworks Sales & Activations"}
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://partner.steampowered.com/*",
+    "https://partner.steamgames.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://partner.steampowered.com/*",
+        "https://partner.steamgames.com/*"
+      ],
+      "js": [
+        "src/model.js",
+        "src/sources.js",
+        "src/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/panel.css"
+      ],
+      "matches": [
+        "https://partner.steampowered.com/*",
+        "https://partner.steamgames.com/*"
+      ]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "action": {
+    "default_title": "Steamfolio: open or close the pane on Steamworks"
+  }
 }
