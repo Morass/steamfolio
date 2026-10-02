@@ -11,11 +11,11 @@ Example view with illustrative game names and figures.
 1. Download and extract the repository.
 2. Open `chrome://extensions`, enable **Developer mode**, and choose **Load unpacked**.
 3. Select the extracted `steamfolio` folder.
-4. Sign in to [Steamworks Sales & Activations](https://partner.steampowered.com/). The figures always come from there, and the pane is available on those pages and on the rest of Steamworks at `partner.steamgames.com`.
+4. Sign in to [Steamworks Sales & Activations](https://partner.steampowered.com/), where the reports and the Steamfolio pane are available.
 
 ## Use
 
-Click the small chart button at the lower right of any Steamworks page, or the Steamfolio button in Chrome's toolbar (elsewhere, that button opens Sales & Activations). Choose a statistic, select one or more games, and set dates for period statistics. The large number is the total across the selected games; the bars show each game's contribution. Use **Update totals** to read the reports again.
+On Sales & Activations, click the small chart button at the lower right or the Steamfolio button in Chrome's toolbar. Clicking the toolbar button from another site, including the main Steamworks administration site, opens Sales & Activations. Choose a statistic, select one or more games, and set dates for period statistics. The large number is the total across the selected games; the bars show each game's contribution. Use **Update totals** to read the reports again.
 
 Your game selection, statistic, and dates are remembered in this Chrome profile. **None** clears the selection; choose at least one game to see a total.
 

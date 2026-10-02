@@ -70,19 +70,10 @@
   }
   const SALES='https://partner.steampowered.com';
   async function fetchReport(path) {
-    let html;
-    if (location.origin===SALES) {
-      const response=await fetch(path,{credentials:'same-origin',cache:'no-store'});
-      if (!response.ok || new URL(response.url).origin!==location.origin) throw new Error('Steamworks report could not be loaded');
-      html=await response.text();
-    } else {
-      // Elsewhere in Steamworks the reports are still read from Sales & Activations, by the
-      // extension's background worker, with the user's sign-in there.
-      const reply=await chrome.runtime.sendMessage({type:'steamfolio:report',path});
-      if (!reply || !reply.ok) throw new Error('Steamworks report could not be loaded');
-      html=reply.html;
-    }
-    if (/name=["']password["']|id=["']login_form["']/i.test(html)) throw new Error(location.origin===SALES?'Steamworks sign-in required':'Sign in to Steamworks Sales & Activations (partner.steampowered.com) first');
+    const response=await fetch(path,{credentials:'same-origin',cache:'no-store'});
+    if (!response.ok || new URL(response.url).origin!==SALES) throw new Error('Steamworks report could not be loaded');
+    const html=await response.text();
+    if (/name=["']password["']|id=["']login_form["']/i.test(html)) throw new Error('Steamworks sign-in required');
     return html;
   }
   const api={number,catalog,detail,wishlist,verifyDates,fetchReport};

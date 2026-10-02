@@ -76,6 +76,13 @@ test('content stylesheet stays inside the shadow root',()=>{
   const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'../manifest.json'),'utf8'));
   assert.equal(manifest.content_scripts[0].css,undefined);
 });
+test('the extension runs only on the site that owns the reports',()=>{
+  const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'../manifest.json'),'utf8'));
+  const sales=['https://partner.steampowered.com/*'];
+  assert.deepEqual(manifest.host_permissions,sales);
+  assert.deepEqual(manifest.content_scripts.flatMap(script=>script.matches),sales);
+  assert.deepEqual(manifest.web_accessible_resources.flatMap(resource=>resource.matches),sales);
+});
 test('failed game report explains why the combined total is withheld',async()=>{
   const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'https://partner.steampowered.com/',runScripts:'outside-only'});
   const {window}=dom;
@@ -126,50 +133,25 @@ test('the toolbar button opens and closes the pane',async()=>{
 });
 
 function background(fetchImpl) {
-  let clicked=null,onMessage=null;const created=[];const sent=[];
+  let clicked=null,onMessage=null;const created=[];const sent=[];let messageListeners=0;
   const chrome={runtime:{id:'me',onMessage:{addListener:f=>{onMessage=f;}}},action:{onClicked:{addListener:f=>{clicked=f;}}},tabs:{create:o=>created.push(o.url),sendMessage:(id,m)=>{sent.push([id,m]);return Promise.resolve();},reload:()=>{}}};
+  chrome.runtime.onMessage.addListener=f=>{messageListeners++;onMessage=f;};
   new Function('chrome','fetch',source('background.js'))(chrome,fetchImpl||(async()=>{throw new Error('no fetch');}));
-  const ask=(msg,sender)=>new Promise(resolve=>{if(!onMessage(msg,sender,resolve))resolve('ignored');});
-  return {clicked,created,sent,ask};
+  const ask=(msg,sender)=>new Promise(resolve=>{if(!onMessage||!onMessage(msg,sender,resolve))resolve('ignored');});
+  return {clicked,created,sent,ask,messageListeners};
 }
 
-test('the toolbar button works on both Steamworks sites and opens Sales & Activations elsewhere',()=>{
+test('the toolbar toggles only on Sales & Activations and opens it everywhere else',()=>{
   const b=background();
   b.clicked({id:1,url:'https://partner.steamgames.com/apps/'});
   b.clicked({id:2});
   b.clicked({id:3,url:'https://partner.steampowered.com/app/details/10/'});
   b.clicked({id:4,url:'https://example.com/'});
-  assert.deepEqual(b.created,['https://partner.steampowered.com/','https://partner.steampowered.com/']);
-  assert.deepEqual(b.sent,[[1,'steamfolio:toggle'],[3,'steamfolio:toggle']]);
+  assert.deepEqual(b.created,['https://partner.steampowered.com/','https://partner.steampowered.com/','https://partner.steampowered.com/']);
+  assert.deepEqual(b.sent,[[3,'steamfolio:toggle']]);
 });
 
-test('the background worker reads only Sales & Activations reports, for Steamworks pages only',async()=>{
-  const asked=[];
-  const b=background(async(url,opts)=>{asked.push([String(url),opts.credentials]);return {ok:true,url:String(url),text:async()=>'<html>report</html>'};});
-  const page={id:'me',url:'https://partner.steamgames.com/apps/'};
-  assert.deepEqual(await b.ask({type:'steamfolio:report',path:'/dir.php'},page),{ok:true,html:'<html>report</html>'});
-  assert.deepEqual(asked,[['https://partner.steampowered.com/dir.php','include']]);
-  for (const path of ['//evil.example/x','https://evil.example/','dir.php','/\\evil.example',null]) assert.deepEqual(await b.ask({type:'steamfolio:report',path},page),{ok:false});
-  assert.equal(await b.ask({type:'steamfolio:report',path:'/dir.php'},{id:'other',url:page.url}),'ignored');
-  assert.equal(await b.ask({type:'steamfolio:report',path:'/dir.php'},{id:'me',url:'https://example.com/'}),'ignored');
-  assert.equal(asked.length,1);
-  const moved=background(async url=>({ok:true,url:'https://store.steampowered.com/login/',text:async()=>'x'}));
-  assert.deepEqual(await moved.ask({type:'steamfolio:report',path:'/dir.php'},page),{ok:false});
-});
-
-test('on partner.steamgames.com the pane reads Sales & Activations through the worker',async()=>{
-  const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'https://partner.steamgames.com/apps/',runScripts:'outside-only'});
-  const {window}=dom;const paths=[];
-  window.fetch=()=>{throw new Error('the page must not fetch reports itself');};
-  window.chrome={runtime:{getURL:()=>'/panel.css',sendMessage:async m=>{paths.push(m.path);return {ok:true,html:m.path==='/dir.php'?catalog:report(m.path.match(/details\/(\d+)/)[1])};}},storage:{local:{get:async()=>({}),set:()=>{}}}};
-  window.eval(source('model.js'));
-  window.eval(source('sources.js'));
-  window.eval(source('content.js'));
-  const root=window.document.querySelector('#steamfolio-root').shadowRoot;
-  root.querySelector('.sf-launch').click();
-  await tick();
-  assert.equal(root.querySelector('.sf-total strong').textContent,'8');
-  assert.equal(paths[0],'/dir.php');
-  window.chrome.runtime.sendMessage=async()=>({ok:true,html:'<form id="login_form"><input name="password"></form>'});
-  await assert.rejects(window.SteamfolioSources.fetchReport('/dir.php'),/partner\.steampowered\.com/);
+test('the background worker does not relay Steamworks report contents',()=>{
+  const b=background();
+  assert.equal(b.messageListeners,0);
 });
