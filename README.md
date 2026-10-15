@@ -17,6 +17,8 @@ Example view with illustrative game names and figures.
 
 On Sales & Activations, click the small chart button at the lower right or the Steamfolio button in Chrome's toolbar. Clicking the toolbar button from another site, including the main Steamworks administration site, opens Sales & Activations. Choose a statistic, select one or more games, and set dates for period statistics. The large number is the total across the selected games; the bars show each game's contribution. Use **Update totals** to read the reports again.
 
+Period statistics default to **All time** through **Today**. Today advances automatically when you update totals. Uncheck either option to choose a fixed date.
+
 Your game selection, statistic, and dates are remembered in this Chrome profile. **None** clears the selection; choose at least one game to see a total.
 
 ![Steamfolio showing lifetime gross revenue for two selected games](docs/portfolio-selection.png)

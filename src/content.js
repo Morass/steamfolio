@@ -3,16 +3,15 @@
   if (document.getElementById('steamfolio-root')) return;
   const Model=globalThis.SteamfolioModel, Sources=globalThis.SteamfolioSources;
   const state={games:[],selected:new Set(),metric:'wishlist.current',start:'',end:'',busy:false,open:false,query:'',generation:0};
-  const latest=new Date();latest.setDate(latest.getDate()-1);
-  const prior=new Date(latest);prior.setDate(prior.getDate()-6);
   const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  state.start=iso(prior);state.end=iso(latest);
+  // Steam reports require concrete bounds; the Unix epoch predates all Steam activity.
+  const bounds=()=>({start:state.start||'1970-01-01',end:state.end||iso(new Date())});
   const host=document.createElement('div');host.id='steamfolio-root';document.documentElement.append(host);
   const shadow=host.attachShadow({mode:'open'});
   const style=document.createElement('link');style.rel='stylesheet';style.href=chrome.runtime.getURL('src/panel.css');shadow.append(style);
   const launcher=document.createElement('button');launcher.className='sf-launch';launcher.type='button';launcher.textContent='▥';launcher.title='Open Steamfolio';shadow.append(launcher);
   const panel=document.createElement('section');panel.className='sf-panel';panel.hidden=true;panel.setAttribute('aria-label','Steamfolio portfolio statistics');shadow.append(panel);
-  panel.innerHTML='<header><div><small>STEAMWORKS PORTFOLIO</small><h2>Steamfolio</h2></div><button class="sf-close" type="button" aria-label="Close">×</button></header><div class="sf-body"><label class="sf-label" for="sf-metric">Statistic</label><select id="sf-metric"></select><div class="sf-dates"><label>From<input id="sf-start" type="date"></label><label>Through<input id="sf-end" type="date"></label></div><div class="sf-games-head"><span>Games <b id="sf-count"></b></span><div><button id="sf-all" type="button">All</button><button id="sf-none" type="button">None</button></div></div><input id="sf-search" type="search" placeholder="Filter game names" aria-label="Filter game names"><div id="sf-games" class="sf-games"></div><button id="sf-refresh" class="sf-refresh" type="button">Update totals</button><div id="sf-status" class="sf-status" role="status"></div><div id="sf-result" class="sf-result"></div><p class="sf-foot">Read from your signed-in Steamworks reports. Values stay in this browser tab.</p></div>';
+  panel.innerHTML='<header><div><small>STEAMWORKS PORTFOLIO</small><h2>Steamfolio</h2></div><button class="sf-close" type="button" aria-label="Close">×</button></header><div class="sf-body"><label class="sf-label" for="sf-metric">Statistic</label><select id="sf-metric"></select><div class="sf-dates"><div><label for="sf-start">From</label><label><input id="sf-all-time" type="checkbox" checked>All time</label><input id="sf-start" type="date"></div><div><label for="sf-end">Through</label><label><input id="sf-today" type="checkbox" checked>Today</label><input id="sf-end" type="date"></div></div><div class="sf-games-head"><span>Games <b id="sf-count"></b></span><div><button id="sf-all" type="button">All</button><button id="sf-none" type="button">None</button></div></div><input id="sf-search" type="search" placeholder="Filter game names" aria-label="Filter game names"><div id="sf-games" class="sf-games"></div><button id="sf-refresh" class="sf-refresh" type="button">Update totals</button><div id="sf-status" class="sf-status" role="status"></div><div id="sf-result" class="sf-result"></div><p class="sf-foot">Read from your signed-in Steamworks reports. Values stay in this browser tab.</p></div>';
   const $=s=>panel.querySelector(s);
   const metric=$('#sf-metric'),start=$('#sf-start'),end=$('#sf-end'),gameList=$('#sf-games'),result=$('#sf-result'),status=$('#sf-status');
   for (const group of ['Wishlists','Sales']) {
@@ -21,10 +20,12 @@
     metric.append(optgroup);
   }
   start.value=state.start;end.value=state.end;
-  function save() {chrome.storage.local.set({metric:state.metric,selected:[...state.selected],start:state.start,end:state.end});}
+  function save() {chrome.storage.local.set({metric:state.metric,selected:[...state.selected],start:state.start,end:state.end,dateDefaultsVersion:1});}
   function selectedGames() {return state.games.filter(g=>state.selected.has(g.id));}
   function controls() {
     const m=Model.BY_ID[state.metric];
+    $('#sf-all-time').checked=!state.start;$('#sf-today').checked=!state.end;
+    start.disabled=!state.start;end.disabled=!state.end;
     $('.sf-dates').hidden=!!m.lifetime;
     $('#sf-count').textContent=`${state.selected.size}/${state.games.length}`;
     $('#sf-refresh').disabled=state.busy || !state.selected.size;
@@ -47,7 +48,7 @@
     const card=document.createElement('div');card.className='sf-total';
     const caption=document.createElement('span');caption.textContent=m.label;
     const value=document.createElement('strong');value.textContent=summary.complete?Model.format(summary.total,m.unit):'—';
-    const sub=document.createElement('small');sub.textContent=summary.complete?`${summary.items.length} games included${m.lifetime?'':` · ${state.start} to ${state.end}`}`:summary.message+' · total withheld';
+    const sub=document.createElement('small');sub.textContent=summary.complete?`${summary.items.length} games included${m.lifetime?'':` · ${state.start||'All time'} to ${state.end||'Today'}`}`:summary.message+' · total withheld';
     card.append(caption,value,sub);result.append(card);
     const max=Math.max(1,...summary.items.map(x=>Math.abs(x.value)));
     for (const item of summary.items.sort((a,b)=>Math.abs(b.value)-Math.abs(a.value))) {
@@ -65,23 +66,24 @@
   async function load() {
     const games=selectedGames(),m=Model.BY_ID[state.metric],generation=++state.generation;
     if (!games.length){state.busy=false;status.textContent='Select at least one game.';result.replaceChildren();controls();return;}
-    if (!m.lifetime && (!/^\d{4}-\d\d-\d\d$/.test(state.start)||!/^\d{4}-\d\d-\d\d$/.test(state.end)||state.start>state.end)) {state.busy=false;status.textContent='Choose a valid date range.';result.replaceChildren();controls();return;}
+    const range=bounds();
+    if (!m.lifetime && (!/^\d{4}-\d\d-\d\d$/.test(range.start)||!/^\d{4}-\d\d-\d\d$/.test(range.end)||range.start>range.end)) {state.busy=false;status.textContent='Choose a valid date range.';result.replaceChildren();controls();return;}
     state.busy=true;controls();status.textContent='Reading Steamworks reports…';result.replaceChildren();
     const rows=new Map();
     const failures=[];
     try {
       if (m.source==='wishlist') {
-        const q=new URLSearchParams({dateStart:state.start,dateEnd:state.end});
+        const q=new URLSearchParams({dateStart:range.start,dateEnd:range.end});
         const html=await Sources.fetchReport(`/wishlist/daily/?${q}`);
-        Sources.verifyDates(html,state.start,state.end);
+        Sources.verifyDates(html,range.start,range.end);
         const all=Sources.wishlist(html,state.games);
         for(const game of games) if(all.has(game.id))rows.set(game.id,all.get(game.id));
       } else {
         await Model.runLimited(games,3,async game=>{
           try {
-            const q=m.lifetime?'':`?${new URLSearchParams({dateStart:state.start,dateEnd:state.end})}`;
+            const q=m.lifetime?'':`?${new URLSearchParams({dateStart:range.start,dateEnd:range.end})}`;
             const html=await Sources.fetchReport(`/app/details/${game.id}/${q}`);
-            if(!m.lifetime)Sources.verifyDates(html,state.start,state.end);
+            if(!m.lifetime)Sources.verifyDates(html,range.start,range.end);
             rows.set(game.id,Sources.detail(html));
           } catch (e) {failures.push(`${game.name}: ${e.message||'report unavailable'}`);}
         });
@@ -100,19 +102,20 @@
   chrome.runtime.onMessage?.addListener(msg=>{if(msg==='steamfolio:toggle')(state.open?$('.sf-close'):launcher).click();});
   metric.addEventListener('change',()=>{state.metric=metric.value;controls();save();load();});
   for (const [element,key] of [[start,'start'],[end,'end']])element.addEventListener('change',()=>{state[key]=element.value;save();load();});
+  for(const [id,key,input] of [['sf-all-time','start',start],['sf-today','end',end]])$('#'+id).addEventListener('change',e=>{state[key]=e.target.checked?'':iso(new Date());input.value=state[key];controls();save();load();});
   $('#sf-search').addEventListener('input',e=>{state.query=e.target.value.toLocaleLowerCase();renderGames();});
   $('#sf-all').addEventListener('click',()=>{for(const g of state.games)state.selected.add(g.id);renderGames();save();load();});
   $('#sf-none').addEventListener('click',()=>{state.selected.clear();renderGames();save();load();});
   $('#sf-refresh').addEventListener('click',load);
   async function init() {
     try {
-      const [stored,html]=await Promise.all([chrome.storage.local.get(['metric','selected','start','end']),Sources.fetchReport('/dir.php')]);
+      const [stored,html]=await Promise.all([chrome.storage.local.get(['metric','selected','start','end','dateDefaultsVersion']),Sources.fetchReport('/dir.php')]);
       state.games=Sources.catalog(html);
       if(Model.BY_ID[stored.metric])state.metric=stored.metric;
       state.selected=new Set(Array.isArray(stored.selected)?stored.selected.map(String).filter(id=>state.games.some(g=>g.id===id)):state.games.map(g=>g.id));
-      if(/^\d{4}-\d\d-\d\d$/.test(stored.start))state.start=stored.start;
-      if(/^\d{4}-\d\d-\d\d$/.test(stored.end))state.end=stored.end;
-      metric.value=state.metric;start.value=state.start;end.value=state.end;renderGames();await load();
+      if(stored.dateDefaultsVersion===1 && /^\d{4}-\d\d-\d\d$/.test(stored.start))state.start=stored.start;
+      if(stored.dateDefaultsVersion===1 && /^\d{4}-\d\d-\d\d$/.test(stored.end))state.end=stored.end;
+      metric.value=state.metric;start.value=state.start;end.value=state.end;save();renderGames();await load();
     } catch(e){state.initialized=false;status.textContent=e.message||'Steamworks game list unavailable';}
   }
 })();

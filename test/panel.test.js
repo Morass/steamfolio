@@ -67,9 +67,9 @@ test('opening the pane triggers the first report load',async()=>{
   const root=window.document.querySelector('#steamfolio-root').shadowRoot;
   root.querySelector('.sf-launch').click();await tick();
   assert.equal(calls.length,3);
-  const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
-  const day=`${yesterday.getFullYear()}-${String(yesterday.getMonth()+1).padStart(2,'0')}-${String(yesterday.getDate()).padStart(2,'0')}`;
-  assert.equal(root.querySelector('#sf-end').value,day);
+  assert.equal(root.querySelector('#sf-end').value,'');
+  assert.equal(root.querySelector('#sf-today').checked,true);
+  assert.equal(root.querySelector('#sf-all-time').checked,true);
   dom.window.close();
 });
 test('content stylesheet stays inside the shadow root',()=>{
@@ -154,4 +154,26 @@ test('the toolbar toggles only on Sales & Activations and opens it everywhere el
 test('the background worker does not relay Steamworks report contents',()=>{
   const b=background();
   assert.equal(b.messageListeners,0);
+});
+
+test('legacy dates migrate to all time through today and refresh crosses midnight',async()=>{
+  const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'https://partner.steampowered.com/',runScripts:'outside-only'});
+  const {window}=dom;const RealDate=window.Date;let now='2026-10-15T12:00:00';
+  window.Date=class extends RealDate {constructor(...args){super(...(args.length?args:[now]));}};
+  window.chrome={runtime:{getURL:()=>'/panel.css'},storage:{local:{get:async()=>({metric:'sales.units',start:'2026-09-21',end:'2026-09-27'}),set:()=>{}}}};
+  window.eval(source('model.js'));window.eval(source('sources.js'));
+  const calls=[];
+  window.SteamfolioSources.fetchReport=async url=>{
+    calls.push(url);if(url==='/dir.php')return catalog;
+    const q=new URL(url,'https://partner.steampowered.com').searchParams;
+    return report('10')+`<input name="dateStart" value="${q.get('dateStart')}"><input name="dateEnd" value="${q.get('dateEnd')}">`;
+  };
+  window.eval(source('content.js'));
+  const root=window.document.querySelector('#steamfolio-root').shadowRoot;
+  root.querySelector('.sf-launch').click();await tick();
+  assert.match(calls[1],/dateStart=1970-01-01&dateEnd=2026-10-15/);
+  now='2026-10-16T12:00:00';root.querySelector('#sf-refresh').click();await tick();
+  assert.match(calls.at(-1),/dateEnd=2026-10-16/);
+  assert.match(root.querySelector('.sf-total small').textContent,/All time to Today/);
+  dom.window.close();
 });

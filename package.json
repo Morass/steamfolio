@@ -1,7 +1,11 @@
 {
   "name": "steamfolio",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
-  "scripts": {"test": "node --test"},
-  "devDependencies": {"jsdom": "^26.1.0"}
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  }
 }
